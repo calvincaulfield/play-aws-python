@@ -1,6 +1,6 @@
 import boto3
 from botocore.config import Config
-
+import base64
 
 def do():
     my_config = Config(
@@ -14,6 +14,10 @@ def do():
     ssm_param_name = (
         "/aws/service/ecs/optimized-ami/amazon-linux-2/recommended/image_id"
     )
+
+    userdata = """#!/bin/bash
+      echo ECS_CLUSTER=${var.prefix} >> /etc/ecs/ecs.config"""
+
     try:
         response = client_ssm.get_parameter(
             Name=ssm_param_name,
@@ -27,32 +31,11 @@ def do():
             LaunchTemplateData={
                 "ImageId": val,
                 # "IamInstanceProfile": {"Arn": "string", "Name": "string"},
-                # "BlockDeviceMappings": [
-                #     {
-                #         # "DeviceName": "string",
-                #         # "VirtualName": "string",
-                #         "Ebs": {
-                #             "Encrypted": True ,
-                #             "DeleteOnTermination": True ,
-                #             # "Iops": 123,
-                #             # "KmsKeyId": "string",
-                #             # "SnapshotId": "string",
-                #             "VolumeSize": 10,
-                #             "VolumeType": "standard"
-                #             | "io1"
-                #             | "io2"
-                #             | "gp2"
-                #             | "sc1"
-                #             | "st1"
-                #             | "gp3",
-                #             "Throughput": 123,
-                #         },
-                #     },
-                # ],
                 "InstanceType": "t3.micro",
                 # "SecurityGroupIds": [
                 #     "string",
                 # ],
+                "UserData": base64.b64encode(userdata.encode('ascii')).decode('ascii'),
                 "TagSpecifications": [
                     {
                         "ResourceType": "instance",
@@ -77,6 +60,8 @@ def do():
         )
 
         print(create_launch_template_result)
+        exit(0)
+
         launch_template_id = create_launch_template_result["LaunchTemplate"][
             "LaunchTemplateId"
         ]
@@ -111,28 +96,28 @@ def do():
         asg_arn = response["AutoScalingGroups"][0]["AutoScalingGroupARN"]
 
         cp_name = "my-capacity-provider"
-        create_cp_result = client_ecs.create_capacity_provider(
-            name=cp_name,
-            autoScalingGroupProvider={
-                "autoScalingGroupArn": asg_arn,
-                "managedScaling": {
-                    "status": "ENABLED",
-                    "minimumScalingStepSize": 1,
-                    "maximumScalingStepSize": 10,
-                    "instanceWarmupPeriod": 120,
-                },
-                "managedTerminationProtection": "ENABLED",
-            },
-            tags=[
-                {"key": "string", "value": "string"},
-            ],
-        )
-        response = client_ecs.describe_capacity_providers(
-            capacityProviders=[
-               cp_name,
-            ],
-        )
-        print(response)
+        # create_cp_result = client_ecs.create_capacity_provider(
+        #     name=cp_name,
+        #     autoScalingGroupProvider={
+        #         "autoScalingGroupArn": asg_arn,
+        #         "managedScaling": {
+        #             "status": "ENABLED",
+        #             "minimumScalingStepSize": 1,
+        #             "maximumScalingStepSize": 10,
+        #             "instanceWarmupPeriod": 120,
+        #         },
+        #         "managedTerminationProtection": "ENABLED",
+        #     },
+        #     tags=[
+        #         {"key": "string", "value": "string"},
+        #     ],
+        # )
+        # response = client_ecs.describe_capacity_providers(
+        #     capacityProviders=[
+        #        cp_name,
+        #     ],
+        # )
+        # print(response)
 
         cluster_name = "my-cluster"
         create_cluster_result = client_ecs.create_cluster(
@@ -160,10 +145,11 @@ def do():
     except Exception as err:
         print(err)
     finally:
-        client_ec2.delete_launch_template(LaunchTemplateId=launch_template_id)
-        client_asg.delete_auto_scaling_group(AutoScalingGroupName=asg_name)
-        client_ecs.delete_capacity_provider(capacityProvider=cp_name)
-        client_ecs.delete_cluster(cluster=cluster_name)
+        # client_ec2.delete_launch_template(LaunchTemplateId=launch_template_id)
+        # client_asg.delete_auto_scaling_group(AutoScalingGroupName=asg_name)
+        # client_ecs.delete_capacity_provider(capacityProvider=cp_name)
+        # client_ecs.delete_cluster(cluster=cluster_name)
+        pass
 
 
 if __name__ == "__main__":
